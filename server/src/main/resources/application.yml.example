@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: server
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pixelart
+    username: postgres
+    password: # 여기에 비밀번호 입력
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+server:
+  port: 8080
