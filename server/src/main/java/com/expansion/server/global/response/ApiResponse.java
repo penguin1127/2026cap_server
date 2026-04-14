@@ -23,4 +23,9 @@ public record ApiResponse<T>(
     public static ApiResponse<Void> fail(String message) {
         return new ApiResponse<>(false, message, null);
     }
+
+    // ok() 별칭 — 컨트롤러에서 success() 사용 시
+    public static <T> ApiResponse<T> success(T data) {
+        return new ApiResponse<>(true, null, data);
+    }
 }

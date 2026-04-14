@@ -30,10 +30,14 @@ public enum ErrorCode {
     CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 팔로우할 수 없습니다."),
     ALREADY_FOLLOWING(HttpStatus.CONFLICT, "이미 팔로우한 사용자입니다."),
 
+    // 공통 접근
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
+
     // 갤러리
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시물입니다."),
     POST_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 게시물에 접근 권한이 없습니다."),
     NOT_EDITABLE_POST(HttpStatus.FORBIDDEN, "리믹스가 허용되지 않은 게시물입니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 댓글입니다."),
 
     // 에셋
     ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 에셋입니다."),

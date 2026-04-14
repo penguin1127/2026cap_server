@@ -27,7 +27,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    // OAuth2SuccessHandler는 소셜 로그인 키 설정 후 활성화
+    // private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,18 +38,32 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 비로그인 허용
+                        // 비로그인 허용 — 갤러리
                         .requestMatchers(HttpMethod.GET, "/api/gallery/**").permitAll()
+                        // 비로그인 허용 — 에셋
                         .requestMatchers(HttpMethod.GET, "/api/assets/**").permitAll()
+                        // 비로그인 허용 — 의뢰 게시판
+                        .requestMatchers(HttpMethod.GET, "/api/request-posts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/request-posts/{requestPostId}").permitAll()
+                        // 비로그인 허용 — 작가 서비스
+                        .requestMatchers(HttpMethod.GET, "/api/artist-services").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/artist-services/{serviceId}").permitAll()
+                        // 비로그인 허용 — 유저 프로필
+                        .requestMatchers(HttpMethod.GET, "/api/users/{userId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/by-nickname/{nickname}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/{userId}/followers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/{userId}/following").permitAll()
+                        // 인증 API
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Swagger UI
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // 관리자 전용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 나머지 로그인 필수
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2SuccessHandler)
-                )
+                // OAuth2 소셜 로그인 — Google/Kakao 클라이언트 키 설정 후 활성화
+                // .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler))
                 .addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
