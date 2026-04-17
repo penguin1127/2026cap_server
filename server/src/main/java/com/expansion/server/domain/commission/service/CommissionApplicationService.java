@@ -15,12 +15,15 @@ import com.expansion.server.domain.user.repository.UserRepository;
 import com.expansion.server.global.exception.CustomException;
 import com.expansion.server.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,7 +68,12 @@ public class CommissionApplicationService {
                 .proposedPrice(request.getProposedPrice())
                 .build();
 
-        applicationRepository.save(application);
+        try {
+            applicationRepository.saveAndFlush(application);
+        } catch (DataIntegrityViolationException e) {
+            // unique constraint (request_post_id, artist_id) 위반 — 동시 중복 지원
+            throw new CustomException(ErrorCode.ALREADY_APPLIED);
+        }
 
         Profile artistProfile = profileRepository.findByUser_UserId(artistId).orElse(null);
         return CommissionApplicationResponse.of(application, artistProfile);
@@ -88,17 +96,28 @@ public class CommissionApplicationService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
-        return applicationRepository.findByRequestPost_RequestPostId(requestPostId, pageable)
-                .map(app -> {
-                    Profile artistProfile = profileRepository.findByUser_UserId(app.getArtist().getUserId()).orElse(null);
-                    return CommissionApplicationResponse.of(app, artistProfile);
-                });
+        Page<CommissionApplication> page = applicationRepository
+                .findByRequestPost_RequestPostId(requestPostId, pageable);
+
+        // N+1 방지: artistId 모아서 한 번에 조회
+        List<Long> artistIds = page.getContent().stream()
+                .map(app -> app.getArtist().getUserId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, Profile> profileMap = profileRepository.findAllByUser_UserIdIn(artistIds)
+                .stream()
+                .collect(Collectors.toMap(p -> p.getUser().getUserId(), p -> p));
+
+        return page.map(app -> CommissionApplicationResponse.of(
+                app, profileMap.get(app.getArtist().getUserId())));
     }
 
     // 지원 수락 → 나머지 REJECTED + Commission 생성
     @Transactional
     public void accept(Long clientId, Long applicationId) {
-        CommissionApplication application = findById(applicationId);
+        // 비관적 락으로 동시 수락 방지
+        CommissionApplication application = findByIdWithLock(applicationId);
 
         RequestPost post = application.getRequestPost();
 
@@ -161,6 +180,11 @@ public class CommissionApplicationService {
 
     private CommissionApplication findById(Long applicationId) {
         return applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.APPLICATION_NOT_FOUND));
+    }
+
+    private CommissionApplication findByIdWithLock(Long applicationId) {
+        return applicationRepository.findByIdWithLock(applicationId)
                 .orElseThrow(() -> new CustomException(ErrorCode.APPLICATION_NOT_FOUND));
     }
 }

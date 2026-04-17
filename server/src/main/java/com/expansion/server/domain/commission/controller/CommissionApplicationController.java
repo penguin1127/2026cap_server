@@ -4,6 +4,7 @@ import com.expansion.server.domain.commission.dto.CommissionApplicationCreateReq
 import com.expansion.server.domain.commission.dto.CommissionApplicationResponse;
 import com.expansion.server.domain.commission.service.CommissionApplicationService;
 import com.expansion.server.global.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,7 @@ public class CommissionApplicationController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<CommissionApplicationResponse> apply(
             @AuthenticationPrincipal Long userId,
-            @RequestBody CommissionApplicationCreateRequest request) {
+            @Valid @RequestBody CommissionApplicationCreateRequest request) {
         return ApiResponse.ok(applicationService.apply(userId, request));
     }
 

@@ -1,9 +1,13 @@
 package com.expansion.server.domain.commission.repository;
 
 import com.expansion.server.domain.commission.entity.CommissionApplication;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +29,9 @@ public interface CommissionApplicationRepository extends JpaRepository<Commissio
     // 수락 시 나머지 지원 REJECTED 처리용
     List<CommissionApplication> findByRequestPost_RequestPostIdAndStatusAndApplicationIdNot(
             Long requestPostId, String status, Long acceptedApplicationId);
+
+    // 비관적 락 조회 (동시 수락 방지)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM CommissionApplication a WHERE a.applicationId = :id")
+    Optional<CommissionApplication> findByIdWithLock(@Param("id") Long id);
 }
