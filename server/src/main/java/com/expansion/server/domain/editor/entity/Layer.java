@@ -43,6 +43,9 @@ public class Layer {
     @Column(name = "file_url", length = 500)
     private String fileUrl;
 
+    @Column(name = "pixel_data", columnDefinition = "TEXT")
+    private String pixelData;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -51,7 +54,7 @@ public class Layer {
 
     @Builder
     public Layer(Project project, String name, int layerOrder, String blendMode,
-                 boolean isLocked, boolean isVisible, float opacity, String fileUrl) {
+                 boolean isLocked, boolean isVisible, float opacity, String fileUrl, String pixelData) {
         this.project = project;
         this.name = name;
         this.layerOrder = layerOrder;
@@ -60,6 +63,7 @@ public class Layer {
         this.isVisible = isVisible;
         this.opacity = opacity > 0 ? opacity : 1.0f;
         this.fileUrl = fileUrl;
+        this.pixelData = pixelData;
     }
 
     @PrePersist
@@ -76,12 +80,13 @@ public class Layer {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void update(String name, float opacity, boolean isVisible, boolean isLocked, String fileUrl) {
+    public void update(String name, float opacity, boolean isVisible, boolean isLocked, String fileUrl, String pixelData) {
         if (name != null) this.name = name;
         this.opacity = opacity;
         this.isVisible = isVisible;
         this.isLocked = isLocked;
         if (fileUrl != null) this.fileUrl = fileUrl;
+        if (pixelData != null) this.pixelData = pixelData;
     }
 
     public void reorder(int newOrder) {

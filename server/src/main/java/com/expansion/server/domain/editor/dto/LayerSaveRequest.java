@@ -26,4 +26,6 @@ public class LayerSaveRequest {
     private float opacity;
 
     private String fileUrl;
+
+    private String pixelData;
 }
