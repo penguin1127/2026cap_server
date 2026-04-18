@@ -26,4 +26,7 @@ public class LayerSaveRequest {
     private float opacity;
 
     private String fileUrl;
+
+    @Size(max = 1_500_000, message = "픽셀 데이터가 너무 큽니다.")
+    private String pixelData;
 }

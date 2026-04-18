@@ -136,6 +136,7 @@ public class EditorService {
                         .isVisible(req.isVisible())
                         .opacity(req.getOpacity())
                         .fileUrl(req.getFileUrl())
+                        .pixelData(req.getPixelData())
                         .build())
                 .collect(Collectors.toList());
 
