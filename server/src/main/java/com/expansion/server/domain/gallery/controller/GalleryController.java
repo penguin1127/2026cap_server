@@ -2,6 +2,8 @@ package com.expansion.server.domain.gallery.controller;
 
 import com.expansion.server.domain.gallery.dto.*;
 import com.expansion.server.domain.gallery.service.GalleryService;
+import com.expansion.server.global.exception.CustomException;
+import com.expansion.server.global.exception.ErrorCode;
 import com.expansion.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,13 @@ public class GalleryController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof Long id) return id;
         return null;
+    }
+
+    /** 로그인 필수 엔드포인트용 — null이면 예외 발생 */
+    private Long requireUserId(Long principal) {
+        Long id = resolveUserId(principal);
+        if (id == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
+        return id;
     }
 
     // ──────────────────────────────────────────────
@@ -100,7 +109,7 @@ public class GalleryController {
             @Valid @RequestBody GalleryPostCreateRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(galleryService.createPost(userId, request)));
+                .body(ApiResponse.success(galleryService.createPost(requireUserId(userId), request)));
     }
 
     // ──────────────────────────────────────────────
@@ -115,7 +124,7 @@ public class GalleryController {
             @Valid @RequestBody GalleryPostUpdateRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                galleryService.updatePost(userId, postId, request)));
+                galleryService.updatePost(requireUserId(userId), postId, request)));
     }
 
     // ──────────────────────────────────────────────
@@ -128,7 +137,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
 
-        galleryService.deletePost(userId, postId);
+        galleryService.deletePost(requireUserId(userId), postId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -142,7 +151,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
 
-        boolean liked = galleryService.toggleLike(userId, postId);
+        boolean liked = galleryService.toggleLike(requireUserId(userId), postId);
         return ResponseEntity.ok(ApiResponse.success(liked));
     }
 
@@ -174,7 +183,7 @@ public class GalleryController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(
-                        galleryService.createComment(userId, postId, request)));
+                        galleryService.createComment(requireUserId(userId), postId, request)));
     }
 
     // ──────────────────────────────────────────────
@@ -188,7 +197,7 @@ public class GalleryController {
             @PathVariable Long postId,
             @PathVariable Long commentId) {
 
-        galleryService.deleteComment(userId, commentId);
+        galleryService.deleteComment(requireUserId(userId), commentId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

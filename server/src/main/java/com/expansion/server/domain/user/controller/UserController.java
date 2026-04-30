@@ -54,8 +54,9 @@ public class UserController {
         Long resolvedId = userId;
         if (resolvedId == null) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            Object principal = auth != null ? auth.getPrincipal() : null;
             log.warn("@AuthenticationPrincipal returned null — SecurityContext auth present={}, principal type={}",
-                    auth != null, auth != null ? auth.getPrincipal().getClass().getSimpleName() : "null");
+                    auth != null, principal != null ? principal.getClass().getSimpleName() : "null");
             if (auth != null && auth.getPrincipal() instanceof Long id) {
                 resolvedId = id;
             }
@@ -102,7 +103,10 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> follow(
             @PathVariable Long userId,
             @AuthenticationPrincipal Long currentUserId) {
-        userService.follow(resolveUserId(currentUserId), userId);
+        Long resolvedId = resolveUserId(currentUserId);
+        if (resolvedId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.fail("인증이 필요합니다."));
+        userService.follow(resolvedId, userId);
         return ResponseEntity.ok(ApiResponse.ok("팔로우 했습니다."));
     }
 
@@ -114,7 +118,10 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> unfollow(
             @PathVariable Long userId,
             @AuthenticationPrincipal Long currentUserId) {
-        userService.unfollow(resolveUserId(currentUserId), userId);
+        Long resolvedId = resolveUserId(currentUserId);
+        if (resolvedId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.fail("인증이 필요합니다."));
+        userService.unfollow(resolvedId, userId);
         return ResponseEntity.ok(ApiResponse.ok("언팔로우 했습니다."));
     }
 

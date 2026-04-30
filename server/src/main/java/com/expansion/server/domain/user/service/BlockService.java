@@ -121,7 +121,8 @@ public class BlockService {
 
     @Transactional
     public void unblockTag(Long userId, String tagName) {
+        String trimmed = (tagName == null) ? "" : tagName.trim();
         userBlockRepository.deleteByUser_UserIdAndBlockTypeAndTargetTag(
-                userId, TYPE_TAG, tagName);
+                userId, TYPE_TAG, trimmed);
     }
 }
