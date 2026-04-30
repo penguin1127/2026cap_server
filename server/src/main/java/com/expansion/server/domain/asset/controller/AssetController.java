@@ -38,6 +38,10 @@ public class AssetController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
 
+        if (authorId != null && isFree != null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("authorId와 isFree는 동시에 사용할 수 없습니다."));
+        }
         if (authorId != null) {
             return ResponseEntity.ok(ApiResponse.success(assetService.getUserAssets(authorId, pageable)));
         }

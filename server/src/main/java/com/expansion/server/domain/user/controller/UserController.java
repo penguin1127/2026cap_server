@@ -54,8 +54,8 @@ public class UserController {
         Long resolvedId = userId;
         if (resolvedId == null) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            log.warn("@AuthenticationPrincipal returned null — SecurityContext auth={}, principal={}",
-                    auth, auth != null ? auth.getPrincipal() : "null");
+            log.warn("@AuthenticationPrincipal returned null — SecurityContext auth present={}, principal type={}",
+                    auth != null, auth != null ? auth.getPrincipal().getClass().getSimpleName() : "null");
             if (auth != null && auth.getPrincipal() instanceof Long id) {
                 resolvedId = id;
             }

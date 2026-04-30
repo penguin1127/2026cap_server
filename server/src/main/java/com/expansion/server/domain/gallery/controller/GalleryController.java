@@ -47,6 +47,18 @@ public class GalleryController {
 
         Long resolvedUserId = resolveUserId(currentUserId);
 
+        // likedBy와 authorId 동시 사용 금지
+        if (likedBy != null && authorId != null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("likedBy와 authorId는 동시에 사용할 수 없습니다."));
+        }
+
+        // 유효하지 않은 galleryType 거부
+        if (type != null && !type.equals("FREE") && !type.equals("DEDICATED")) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("type은 FREE 또는 DEDICATED만 허용됩니다."));
+        }
+
         // likedBy 있으면 해당 유저가 좋아요한 게시물 반환
         if (likedBy != null) {
             return ResponseEntity.ok(ApiResponse.success(

@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.util.List;
 
 @Service
@@ -68,11 +70,15 @@ public class BlockService {
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        userBlockRepository.save(UserBlock.builder()
-                .user(user)
-                .blockType(TYPE_USER)
-                .targetUser(targetUser)
-                .build());
+        try {
+            userBlockRepository.save(UserBlock.builder()
+                    .user(user)
+                    .blockType(TYPE_USER)
+                    .targetUser(targetUser)
+                    .build());
+        } catch (DataIntegrityViolationException ignored) {
+            // 동시 요청으로 인한 중복 저장 시도 — 무시
+        }
     }
 
     @Transactional
@@ -87,20 +93,30 @@ public class BlockService {
 
     @Transactional
     public void blockTag(Long userId, String tagName) {
+        // 태그 입력값 검증
+        String trimmed = (tagName == null) ? "" : tagName.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 100) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+
         // 이미 차단 중이면 무시
         boolean exists = userBlockRepository
-                .findByUser_UserIdAndBlockTypeAndTargetTag(userId, TYPE_TAG, tagName)
+                .findByUser_UserIdAndBlockTypeAndTargetTag(userId, TYPE_TAG, trimmed)
                 .isPresent();
         if (exists) return;
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        userBlockRepository.save(UserBlock.builder()
-                .user(user)
-                .blockType(TYPE_TAG)
-                .targetTag(tagName)
-                .build());
+        try {
+            userBlockRepository.save(UserBlock.builder()
+                    .user(user)
+                    .blockType(TYPE_TAG)
+                    .targetTag(trimmed)
+                    .build());
+        } catch (DataIntegrityViolationException ignored) {
+            // 동시 요청으로 인한 중복 저장 시도 — 무시
+        }
     }
 
     @Transactional

@@ -4,6 +4,7 @@ import com.expansion.server.domain.user.dto.BlockResponse;
 import com.expansion.server.domain.user.service.BlockService;
 import com.expansion.server.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,11 @@ public class BlockController {
         return null;
     }
 
+    private ResponseEntity<ApiResponse<Void>> unauthorized() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.fail("인증이 필요합니다."));
+    }
+
     /**
      * GET /api/blocks
      * 내 차단 목록 전체 조회 (로그인 필수)
@@ -31,8 +37,10 @@ public class BlockController {
     @GetMapping
     public ResponseEntity<ApiResponse<BlockResponse>> getMyBlocks(
             @AuthenticationPrincipal Long userId) {
-        return ResponseEntity.ok(ApiResponse.ok(
-                blockService.getMyBlocks(resolveUserId(userId))));
+        Long resolvedId = resolveUserId(userId);
+        if (resolvedId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.fail("인증이 필요합니다."));
+        return ResponseEntity.ok(ApiResponse.ok(blockService.getMyBlocks(resolvedId)));
     }
 
     /**
@@ -43,7 +51,9 @@ public class BlockController {
     public ResponseEntity<ApiResponse<Void>> blockUser(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long targetUserId) {
-        blockService.blockUser(resolveUserId(userId), targetUserId);
+        Long resolvedId = resolveUserId(userId);
+        if (resolvedId == null) return unauthorized();
+        blockService.blockUser(resolvedId, targetUserId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
@@ -55,7 +65,9 @@ public class BlockController {
     public ResponseEntity<ApiResponse<Void>> unblockUser(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long targetUserId) {
-        blockService.unblockUser(resolveUserId(userId), targetUserId);
+        Long resolvedId = resolveUserId(userId);
+        if (resolvedId == null) return unauthorized();
+        blockService.unblockUser(resolvedId, targetUserId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
@@ -67,7 +79,9 @@ public class BlockController {
     public ResponseEntity<ApiResponse<Void>> blockTag(
             @AuthenticationPrincipal Long userId,
             @PathVariable String tagName) {
-        blockService.blockTag(resolveUserId(userId), tagName);
+        Long resolvedId = resolveUserId(userId);
+        if (resolvedId == null) return unauthorized();
+        blockService.blockTag(resolvedId, tagName);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
@@ -79,7 +93,9 @@ public class BlockController {
     public ResponseEntity<ApiResponse<Void>> unblockTag(
             @AuthenticationPrincipal Long userId,
             @PathVariable String tagName) {
-        blockService.unblockTag(resolveUserId(userId), tagName);
+        Long resolvedId = resolveUserId(userId);
+        if (resolvedId == null) return unauthorized();
+        blockService.unblockTag(resolvedId, tagName);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }
