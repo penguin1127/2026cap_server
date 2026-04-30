@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 갤러리 목록 조회 시 사용하는 요약 DTO (카드 뷰용)
@@ -25,10 +26,11 @@ public class GalleryPostSummary {
     private int commentCount;
     private String galleryType;
     private String visibility;
+    private List<String> tags;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static GalleryPostSummary of(GalleryPost post, Profile profile) {
+    public static GalleryPostSummary of(GalleryPost post, Profile profile, List<String> tags) {
         return GalleryPostSummary.builder()
                 .postId(post.getPostId())
                 .title(post.getTitle())
@@ -41,6 +43,7 @@ public class GalleryPostSummary {
                 .commentCount(post.getCommentCount())
                 .galleryType(post.getGalleryType().name())
                 .visibility(post.getVisibility().name())
+                .tags(tags != null ? tags : List.of())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();

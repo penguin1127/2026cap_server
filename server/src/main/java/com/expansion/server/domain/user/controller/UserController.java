@@ -6,18 +6,30 @@ import com.expansion.server.domain.user.service.UserService;
 import com.expansion.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+
+    private Long resolveUserId(Long principal) {
+        if (principal != null) return principal;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long id) return id;
+        return null;
+    }
 
     /**
      * GET /api/users/me
@@ -37,7 +49,25 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateMyProfile(
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody ProfileUpdateRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.updateProfile(userId, request)));
+
+        // Spring Security 7에서 @AuthenticationPrincipal이 null 반환하는 경우 대비 fallback
+        Long resolvedId = userId;
+        if (resolvedId == null) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            log.warn("@AuthenticationPrincipal returned null — SecurityContext auth={}, principal={}",
+                    auth, auth != null ? auth.getPrincipal() : "null");
+            if (auth != null && auth.getPrincipal() instanceof Long id) {
+                resolvedId = id;
+            }
+        }
+
+        if (resolvedId == null) {
+            log.error("PATCH /api/users/me: userId를 확인할 수 없습니다. 인증 토큰을 확인하세요.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.fail("인증이 필요합니다."));
+        }
+
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateProfile(resolvedId, request)));
     }
 
     /**
@@ -48,7 +78,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> getUserByNickname(
             @PathVariable String nickname,
             @AuthenticationPrincipal Long currentUserId) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getUserByNickname(nickname, currentUserId)));
+        return ResponseEntity.ok(ApiResponse.ok(userService.getUserByNickname(nickname, resolveUserId(currentUserId))));
     }
 
     /**
@@ -61,7 +91,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> getUserProfile(
             @PathVariable Long userId,
             @AuthenticationPrincipal Long currentUserId) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getUserProfile(userId, currentUserId)));
+        return ResponseEntity.ok(ApiResponse.ok(userService.getUserProfile(userId, resolveUserId(currentUserId))));
     }
 
     /**
@@ -72,7 +102,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> follow(
             @PathVariable Long userId,
             @AuthenticationPrincipal Long currentUserId) {
-        userService.follow(currentUserId, userId);
+        userService.follow(resolveUserId(currentUserId), userId);
         return ResponseEntity.ok(ApiResponse.ok("팔로우 했습니다."));
     }
 
@@ -84,7 +114,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> unfollow(
             @PathVariable Long userId,
             @AuthenticationPrincipal Long currentUserId) {
-        userService.unfollow(currentUserId, userId);
+        userService.unfollow(resolveUserId(currentUserId), userId);
         return ResponseEntity.ok(ApiResponse.ok("언팔로우 했습니다."));
     }
 

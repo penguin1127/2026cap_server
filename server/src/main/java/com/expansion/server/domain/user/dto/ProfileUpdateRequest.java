@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProfileUpdateRequest {
 
-    @Pattern(regexp = "^[a-z0-9_]{4,20}$",
-            message = "닉네임은 영소문자, 숫자, 언더스코어만 사용 가능하며 4~20자여야 합니다.")
+    @Pattern(regexp = "^[a-zA-Z0-9가-힣_]{2,30}$",
+            message = "닉네임은 영문자, 숫자, 한글, 언더스코어만 사용 가능하며 2~30자여야 합니다.")
     private String nickname;
 
     @Size(max = 255, message = "소개는 255자 이하로 입력해주세요.")

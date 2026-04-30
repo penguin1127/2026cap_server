@@ -42,4 +42,18 @@ public interface GalleryPostRepository extends JpaRepository<GalleryPost, Long> 
 
     // 리믹스 원본 참조 게시물 수
     long countByOriginPost_PostId(Long originPostId);
+
+    // 유저가 좋아요한 공개 게시물
+    @Query("""
+            SELECT p FROM GalleryPost p
+            WHERE p.postId IN (
+                SELECT l.targetId FROM Like l
+                WHERE l.user.userId = :userId AND l.targetType = 'GALLERY_POST'
+            )
+            AND p.visibility = :visibility
+            """)
+    Page<GalleryPost> findLikedByUser(
+            @Param("userId") Long userId,
+            @Param("visibility") Visibility visibility,
+            Pageable pageable);
 }

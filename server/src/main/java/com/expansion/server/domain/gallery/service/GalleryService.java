@@ -248,6 +248,12 @@ public class GalleryService {
         return toSummaryPage(galleryPostRepository.findByTagName(tagName, pageable));
     }
 
+    // 유저가 좋아요한 게시물 목록 (본인 포함 타인도 PUBLIC만 노출)
+    public Page<GalleryPostSummary> getLikedPosts(Long userId, Pageable pageable) {
+        return toSummaryPage(
+                galleryPostRepository.findLikedByUser(userId, Visibility.PUBLIC, pageable));
+    }
+
     // ──────────────────────────────────────────────
     // 좋아요
     // ──────────────────────────────────────────────
@@ -378,6 +384,19 @@ public class GalleryService {
                 .stream()
                 .collect(Collectors.toMap(p -> p.getUser().getUserId(), p -> p));
 
-        return posts.map(p -> GalleryPostSummary.of(p, profileMap.get(p.getUser().getUserId())));
+        // 한 번의 쿼리로 페이지 내 모든 게시물의 태그 일괄 조회
+        List<Long> postIds = posts.stream().map(GalleryPost::getPostId).toList();
+        Map<Long, List<String>> tagMap = postTagRepository.findByPost_PostIdIn(postIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        pt -> pt.getPost().getPostId(),
+                        Collectors.mapping(pt -> pt.getTag().getTagName(), Collectors.toList())
+                ));
+
+        return posts.map(p -> GalleryPostSummary.of(
+                p,
+                profileMap.get(p.getUser().getUserId()),
+                tagMap.getOrDefault(p.getPostId(), List.of())
+        ));
     }
 }

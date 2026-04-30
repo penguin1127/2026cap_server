@@ -11,7 +11,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +23,14 @@ public class GalleryController {
 
     private final GalleryService galleryService;
 
+    /** @AuthenticationPrincipal이 null을 반환하는 경우 SecurityContext에서 직접 추출 */
+    private Long resolveUserId(Long principal) {
+        if (principal != null) return principal;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long id) return id;
+        return null;
+    }
+
     // ──────────────────────────────────────────────
     // 게시물 목록 조회 (비로그인 허용)
     // GET /api/gallery?type=FREE&page=0&size=20&sort=createdAt,desc
@@ -28,11 +38,29 @@ public class GalleryController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<GalleryPostSummary>>> getPostList(
-            @RequestParam(defaultValue = "FREE") String type,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) Long likedBy,
+            @AuthenticationPrincipal Long currentUserId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
 
-        return ResponseEntity.ok(ApiResponse.success(galleryService.getPostList(type, pageable)));
+        Long resolvedUserId = resolveUserId(currentUserId);
+
+        // likedBy 있으면 해당 유저가 좋아요한 게시물 반환
+        if (likedBy != null) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    galleryService.getLikedPosts(likedBy, pageable)));
+        }
+
+        // authorId 있으면 특정 유저의 게시물 반환 (마이페이지/프로필 페이지용)
+        if (authorId != null) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    galleryService.getUserPosts(authorId, resolvedUserId, pageable)));
+        }
+
+        String galleryType = (type != null) ? type : "FREE";
+        return ResponseEntity.ok(ApiResponse.success(galleryService.getPostList(galleryType, pageable)));
     }
 
     // ──────────────────────────────────────────────
@@ -46,7 +74,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long currentUserId) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                galleryService.getPostAndIncrementView(postId, currentUserId)));
+                galleryService.getPostAndIncrementView(postId, resolveUserId(currentUserId))));
     }
 
     // ──────────────────────────────────────────────

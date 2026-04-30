@@ -11,7 +11,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,13 +23,24 @@ public class AssetController {
 
     private final AssetService assetService;
 
-    // GET /api/assets?isFree=true
+    private Long resolveUserId(Long principal) {
+        if (principal != null) return principal;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long id) return id;
+        return null;
+    }
+
+    // GET /api/assets?isFree=true&authorId=1
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AssetSummary>>> getAssetList(
             @RequestParam(required = false) Boolean isFree,
+            @RequestParam(required = false) Long authorId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
 
+        if (authorId != null) {
+            return ResponseEntity.ok(ApiResponse.success(assetService.getUserAssets(authorId, pageable)));
+        }
         return ResponseEntity.ok(ApiResponse.success(assetService.getAssetList(isFree, pageable)));
     }
 
@@ -37,7 +50,7 @@ public class AssetController {
             @PathVariable Long assetId,
             @AuthenticationPrincipal Long currentUserId) {
 
-        return ResponseEntity.ok(ApiResponse.success(assetService.getAsset(assetId, currentUserId)));
+        return ResponseEntity.ok(ApiResponse.success(assetService.getAsset(assetId, resolveUserId(currentUserId))));
     }
 
     // POST /api/assets
