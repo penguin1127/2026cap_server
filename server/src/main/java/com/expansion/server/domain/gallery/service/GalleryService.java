@@ -336,9 +336,14 @@ public class GalleryService {
     }
 
     @Transactional
-    public void deleteComment(Long userId, Long commentId) {
+    public void deleteComment(Long userId, Long postId, Long commentId) {
         GalleryComment comment = galleryCommentRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 댓글이 요청한 게시글에 속하는지 검증
+        if (!comment.getPost().getPostId().equals(postId)) {
+            throw new CustomException(ErrorCode.COMMENT_NOT_FOUND);
+        }
 
         if (!comment.getUser().getUserId().equals(userId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);

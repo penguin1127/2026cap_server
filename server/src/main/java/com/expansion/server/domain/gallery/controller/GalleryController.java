@@ -197,7 +197,7 @@ public class GalleryController {
             @PathVariable Long postId,
             @PathVariable Long commentId) {
 
-        galleryService.deleteComment(requireUserId(userId), commentId);
+        galleryService.deleteComment(requireUserId(userId), postId, commentId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
