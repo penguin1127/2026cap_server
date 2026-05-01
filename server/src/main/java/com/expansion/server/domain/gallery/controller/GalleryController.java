@@ -2,6 +2,8 @@ package com.expansion.server.domain.gallery.controller;
 
 import com.expansion.server.domain.gallery.dto.*;
 import com.expansion.server.domain.gallery.service.GalleryService;
+import com.expansion.server.global.exception.CustomException;
+import com.expansion.server.global.exception.ErrorCode;
 import com.expansion.server.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +13,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +25,21 @@ public class GalleryController {
 
     private final GalleryService galleryService;
 
+    /** @AuthenticationPrincipal이 null을 반환하는 경우 SecurityContext에서 직접 추출 */
+    private Long resolveUserId(Long principal) {
+        if (principal != null) return principal;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long id) return id;
+        return null;
+    }
+
+    /** 로그인 필수 엔드포인트용 — null이면 예외 발생 */
+    private Long requireUserId(Long principal) {
+        Long id = resolveUserId(principal);
+        if (id == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
+        return id;
+    }
+
     // ──────────────────────────────────────────────
     // 게시물 목록 조회 (비로그인 허용)
     // GET /api/gallery?type=FREE&page=0&size=20&sort=createdAt,desc
@@ -28,11 +47,41 @@ public class GalleryController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<GalleryPostSummary>>> getPostList(
-            @RequestParam(defaultValue = "FREE") String type,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) Long likedBy,
+            @AuthenticationPrincipal Long currentUserId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
 
-        return ResponseEntity.ok(ApiResponse.success(galleryService.getPostList(type, pageable)));
+        Long resolvedUserId = resolveUserId(currentUserId);
+
+        // likedBy와 authorId 동시 사용 금지
+        if (likedBy != null && authorId != null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("likedBy와 authorId는 동시에 사용할 수 없습니다."));
+        }
+
+        // 유효하지 않은 galleryType 거부
+        if (type != null && !type.equals("FREE") && !type.equals("DEDICATED")) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("type은 FREE 또는 DEDICATED만 허용됩니다."));
+        }
+
+        // likedBy 있으면 해당 유저가 좋아요한 게시물 반환
+        if (likedBy != null) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    galleryService.getLikedPosts(likedBy, pageable)));
+        }
+
+        // authorId 있으면 특정 유저의 게시물 반환 (마이페이지/프로필 페이지용)
+        if (authorId != null) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    galleryService.getUserPosts(authorId, resolvedUserId, pageable)));
+        }
+
+        String galleryType = (type != null) ? type : "FREE";
+        return ResponseEntity.ok(ApiResponse.success(galleryService.getPostList(galleryType, pageable)));
     }
 
     // ──────────────────────────────────────────────
@@ -46,7 +95,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long currentUserId) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                galleryService.getPostAndIncrementView(postId, currentUserId)));
+                galleryService.getPostAndIncrementView(postId, resolveUserId(currentUserId))));
     }
 
     // ──────────────────────────────────────────────
@@ -60,7 +109,7 @@ public class GalleryController {
             @Valid @RequestBody GalleryPostCreateRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(galleryService.createPost(userId, request)));
+                .body(ApiResponse.success(galleryService.createPost(requireUserId(userId), request)));
     }
 
     // ──────────────────────────────────────────────
@@ -75,7 +124,7 @@ public class GalleryController {
             @Valid @RequestBody GalleryPostUpdateRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                galleryService.updatePost(userId, postId, request)));
+                galleryService.updatePost(requireUserId(userId), postId, request)));
     }
 
     // ──────────────────────────────────────────────
@@ -88,7 +137,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
 
-        galleryService.deletePost(userId, postId);
+        galleryService.deletePost(requireUserId(userId), postId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -102,7 +151,7 @@ public class GalleryController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
 
-        boolean liked = galleryService.toggleLike(userId, postId);
+        boolean liked = galleryService.toggleLike(requireUserId(userId), postId);
         return ResponseEntity.ok(ApiResponse.success(liked));
     }
 
@@ -134,7 +183,7 @@ public class GalleryController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(
-                        galleryService.createComment(userId, postId, request)));
+                        galleryService.createComment(requireUserId(userId), postId, request)));
     }
 
     // ──────────────────────────────────────────────
@@ -148,7 +197,7 @@ public class GalleryController {
             @PathVariable Long postId,
             @PathVariable Long commentId) {
 
-        galleryService.deleteComment(userId, commentId);
+        galleryService.deleteComment(requireUserId(userId), postId, commentId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

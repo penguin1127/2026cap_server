@@ -248,6 +248,12 @@ public class GalleryService {
         return toSummaryPage(galleryPostRepository.findByTagName(tagName, pageable));
     }
 
+    // 유저가 좋아요한 게시물 목록 (본인 포함 타인도 PUBLIC만 노출)
+    public Page<GalleryPostSummary> getLikedPosts(Long userId, Pageable pageable) {
+        return toSummaryPage(
+                galleryPostRepository.findLikedByUser(userId, Visibility.PUBLIC, pageable));
+    }
+
     // ──────────────────────────────────────────────
     // 좋아요
     // ──────────────────────────────────────────────
@@ -330,9 +336,14 @@ public class GalleryService {
     }
 
     @Transactional
-    public void deleteComment(Long userId, Long commentId) {
+    public void deleteComment(Long userId, Long postId, Long commentId) {
         GalleryComment comment = galleryCommentRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 댓글이 요청한 게시글에 속하는지 검증
+        if (!comment.getPost().getPostId().equals(postId)) {
+            throw new CustomException(ErrorCode.COMMENT_NOT_FOUND);
+        }
 
         if (!comment.getUser().getUserId().equals(userId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
@@ -378,6 +389,19 @@ public class GalleryService {
                 .stream()
                 .collect(Collectors.toMap(p -> p.getUser().getUserId(), p -> p));
 
-        return posts.map(p -> GalleryPostSummary.of(p, profileMap.get(p.getUser().getUserId())));
+        // 한 번의 쿼리로 페이지 내 모든 게시물의 태그 일괄 조회
+        List<Long> postIds = posts.stream().map(GalleryPost::getPostId).toList();
+        Map<Long, List<String>> tagMap = postTagRepository.findByPost_PostIdIn(postIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        pt -> pt.getPost().getPostId(),
+                        Collectors.mapping(pt -> pt.getTag().getTagName(), Collectors.toList())
+                ));
+
+        return posts.map(p -> GalleryPostSummary.of(
+                p,
+                profileMap.get(p.getUser().getUserId()),
+                tagMap.getOrDefault(p.getPostId(), List.of())
+        ));
     }
 }
